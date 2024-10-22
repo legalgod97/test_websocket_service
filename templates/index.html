@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Список сообщений</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/dist/stomp.min.js"></script>
+</head>
+<body>
+    <div id="progress-bar">Чтение сообщений</div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Тема</th>
+                <th>Дата отправки</th>
+                <th>Дата получения</th>
+                <th>Описание</th>
+                <th>Прикрепленные файлы</th>
+            </tr>
+        </thead>
+        <tbody id="message-list">
+        </tbody>
+    </table>
+
+    <script>
+        const socket = new SockJS('/ws/messages/');
+        const stompClient = Stomp.over(socket);
+
+        function updateProgressBar(progress, message) {
+            document.getElementById('progress-bar').textContent = message;
+            // Добавьте логику для визуального обновления полосы прогресса
+        }
+
+        function addMessageRow(message) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${message.id}</td>
+                <td>${message.subject}</td>
+                <td>${message.sent_date}</td>
+                <td>${message.received_date}</td>
+                <td>${message.body.substring(0, 50)}...</td>
+                <td>${message.attachments.join(', ')}</td>
+            `;
+            document.getElementById('message-list').appendChild(row);
+        }
+
+        stompClient.connect({}, function (frame) {
+            console.log('Connected: ' + frame);
+            stompClient.subscribe('/topic/messages', function (message) {
+                const data = JSON.parse(message.body);
+                addMessageRow(data);
+                updateProgressBar(data.progress, 'Получение сообщений');
+            });
+        });
+
+        // Запустите получение сообщений после загрузки страницы
+        window.onload = function() {
+            // Отправить запрос на сервер для начала получения сообщений
+            stompClient.send('/app/start-fetch', {}, {});
+        };
+    </script>
+</body>
+</html>
